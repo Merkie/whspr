@@ -1,13 +1,32 @@
 {
   "name": "whspr",
-  "version": "1.0.0",
+  "version": "1.0.1",
+  "description": "CLI tool for audio transcription with Groq Whisper API",
   "type": "module",
   "bin": {
     "whspr": "./bin/whspr.js"
   },
+  "keywords": [
+    "whisper",
+    "transcription",
+    "audio",
+    "cli",
+    "groq"
+  ],
+  "author": "Merkie",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Merkie/whspr"
+  },
+  "files": [
+    "bin",
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
-    "dev": "tsx src/index.ts"
+    "dev": "tsx src/index.ts",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@ai-sdk/groq": "^1.x",

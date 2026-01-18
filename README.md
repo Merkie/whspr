@@ -1,29 +1,34 @@
 # whspr
 
+[![npm version](https://img.shields.io/npm/v/whspr.svg)](https://www.npmjs.com/package/whspr)
+[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
+
 A CLI tool that records audio from your microphone, transcribes it using Groq's Whisper API, and post-processes the transcription with AI to fix errors and apply custom vocabulary.
 
-## Features
+<p align="center">
+  <img src="./demo.gif" alt="whspr demo" width="600">
+</p>
 
-- Live audio waveform visualization in the terminal
-- 15-minute max recording time
-- Transcription via Groq Whisper API
-- AI-powered post-processing to fix transcription errors
-- Custom vocabulary support via `WHSPR.md`
-- Automatic clipboard copy
+## Installation
+
+```bash
+npm install -g whspr
+```
+
+### Optional: Alias as `whisper`
+
+If you'd like to use `whisper` instead of `whspr`, add this to your shell config (`~/.zshrc` or `~/.bashrc`):
+
+```bash
+alias whisper="whspr"
+```
 
 ## Requirements
 
 - Node.js 18+
 - FFmpeg (`brew install ffmpeg` on macOS)
 - Groq API key
-
-## Installation
-
-```bash
-npm install
-npm run build
-npm link
-```
 
 ## Usage
 
@@ -40,9 +45,18 @@ whspr --verbose
 
 Press **Enter** to stop recording.
 
+## Features
+
+- Live audio waveform visualization in the terminal
+- 15-minute max recording time
+- Transcription via Groq Whisper API
+- AI-powered post-processing to fix transcription errors
+- Custom vocabulary support via `WHSPR.md`
+- Automatic clipboard copy
+
 ## Custom Vocabulary
 
-Create a `WHSPR.md` file in your current directory to provide custom vocabulary, names, or instructions for the AI post-processor:
+Create a `WHSPR.md` (or `WHISPER.md`) file in your current directory to provide custom vocabulary, names, or instructions for the AI post-processor:
 
 ```markdown
 # Custom Vocabulary
