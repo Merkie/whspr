@@ -44,7 +44,7 @@ export interface RecordingResult {
 }
 
 export async function record(verbose = false): Promise<RecordingResult> {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "whisper-"));
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "whspr-"));
   const wavPath = path.join(tmpDir, "recording.wav");
 
   return new Promise((resolve, reject) => {

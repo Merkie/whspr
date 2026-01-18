@@ -1,4 +1,4 @@
-# whisper-cli
+# whspr
 
 A CLI tool that records audio from your microphone, transcribes it using Groq's Whisper API, and post-processes with AI to fix errors.
 
@@ -17,7 +17,7 @@ A CLI tool that records audio from your microphone, transcribes it using Groq's 
   - `transcribe.ts` - Groq Whisper API integration
   - `postprocess.ts` - AI post-processing for corrections
   - `utils/` - Shared utilities (retry, clipboard, groq client)
-- `bin/whisper.js` - CLI entrypoint
+- `bin/whspr.js` - CLI entrypoint
 - `dist/` - Compiled output
 
 ## Commands
@@ -36,8 +36,8 @@ npm run dev
 npm link
 
 # Run the CLI
-whisper
-whisper --verbose
+whspr
+whspr --verbose
 ```
 
 ## Environment
@@ -49,8 +49,8 @@ Requires `GROQ_API_KEY` environment variable.
 - Uses Groq SDK for both Whisper transcription and AI post-processing
 - Recording uses FFmpeg's avfoundation (macOS) with ebur128 for volume levels
 - Max recording duration: 15 minutes
-- Failed recordings are saved to `~/.whisper-cli/recordings/` for recovery
-- Custom vocabulary via `WHISPER.md` in current directory
+- Failed recordings are saved to `~/.whspr/recordings/` for recovery
+- Custom vocabulary via `WHSPR.md` in current directory
 
 ## API Flow
 

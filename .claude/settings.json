@@ -9,7 +9,7 @@
       "Bash(npm:*)",
       "Bash(npx:*)",
       "Bash(git:*)",
-      "Bash(whisper:*)"
+      "Bash(whspr:*)"
     ],
     "deny": [
       "Bash(rm -rf:*)",

@@ -1,9 +1,9 @@
 {
-  "name": "whisper-cli",
+  "name": "whspr",
   "version": "1.0.0",
   "type": "module",
   "bin": {
-    "whisper": "./bin/whisper.js"
+    "whspr": "./bin/whspr.js"
   },
   "scripts": {
     "build": "tsc",

@@ -1,4 +1,4 @@
-# whisper-cli
+# whspr
 
 A CLI tool that records audio from your microphone, transcribes it using Groq's Whisper API, and post-processes the transcription with AI to fix errors and apply custom vocabulary.
 
@@ -8,7 +8,7 @@ A CLI tool that records audio from your microphone, transcribes it using Groq's 
 - 15-minute max recording time
 - Transcription via Groq Whisper API
 - AI-powered post-processing to fix transcription errors
-- Custom vocabulary support via `WHISPER.md`
+- Custom vocabulary support via `WHSPR.md`
 - Automatic clipboard copy
 
 ## Requirements
@@ -32,17 +32,17 @@ npm link
 export GROQ_API_KEY="your-api-key"
 
 # Run the tool
-whisper
+whspr
 
 # With verbose output
-whisper --verbose
+whspr --verbose
 ```
 
 Press **Enter** to stop recording.
 
 ## Custom Vocabulary
 
-Create a `WHISPER.md` file in your current directory to provide custom vocabulary, names, or instructions for the AI post-processor:
+Create a `WHSPR.md` file in your current directory to provide custom vocabulary, names, or instructions for the AI post-processor:
 
 ```markdown
 # Custom Vocabulary
@@ -58,11 +58,11 @@ Create a `WHISPER.md` file in your current directory to provide custom vocabular
 2. Displays a live waveform visualization based on audio levels
 3. Converts the recording to MP3
 4. Sends audio to Groq's Whisper API for transcription
-5. Reads `WHISPER.md` from current directory (if exists)
+5. Reads `WHSPR.md` from current directory (if exists)
 6. Sends transcription + custom vocabulary to AI for post-processing
 7. Prints result and copies to clipboard
 
-If transcription fails, the recording is saved to `~/.whisper-cli/recordings/` for manual recovery.
+If transcription fails, the recording is saved to `~/.whspr/recordings/` for manual recovery.
 
 ## License
 

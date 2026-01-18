@@ -47,14 +47,14 @@ async function main() {
         console.log(chalk.gray(`Raw: ${rawText}`));
       }
 
-      // 4. Read WHISPER.md if exists
-      const whisperMdPath = path.join(process.cwd(), "WHISPER.md");
-      const customPrompt = fs.existsSync(whisperMdPath)
-        ? fs.readFileSync(whisperMdPath, "utf-8")
+      // 4. Read WHSPR.md if exists
+      const whsprMdPath = path.join(process.cwd(), "WHSPR.md");
+      const customPrompt = fs.existsSync(whsprMdPath)
+        ? fs.readFileSync(whsprMdPath, "utf-8")
         : null;
 
       if (customPrompt && verbose) {
-        console.log(chalk.gray("Using custom vocabulary from WHISPER.md"));
+        console.log(chalk.gray("Using custom vocabulary from WHSPR.md"));
       }
 
       // 5. Post-process
@@ -102,7 +102,7 @@ async function main() {
     } catch (error) {
       clearStatus();
       // Save recording on failure
-      const backupDir = path.join(os.homedir(), ".whisper-cli", "recordings");
+      const backupDir = path.join(os.homedir(), ".whspr", "recordings");
       fs.mkdirSync(backupDir, { recursive: true });
       const backupPath = path.join(backupDir, `recording-${Date.now()}.mp3`);
       fs.renameSync(mp3Path, backupPath);
