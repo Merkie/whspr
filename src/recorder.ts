@@ -8,8 +8,8 @@ const MAX_DURATION_SECONDS = 900; // 15 minutes
 const DEFAULT_WAVE_WIDTH = 60;
 const STATUS_TEXT_WIDTH = 45; // " Recording [00:00 / 15:00] Press Enter to stop"
 
-// Characters from quiet to loud
-const WAVE_CHARS = ["·", "─", "═", "━", "▬", "█", "█"];
+// Horizontal bar characters for waveform (quiet to loud)
+const WAVE_CHARS = ["·", "-", "=", "≡", "■", "█"];
 
 function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
@@ -18,10 +18,9 @@ function formatTime(seconds: number): string {
 }
 
 function dbToChar(db: number): string {
-  // FTPK typically ranges from -60 (silence) to -10 (loud speech)
-  // Clamp and normalize to this range
-  const clamped = Math.max(-60, Math.min(-10, db));
-  const normalized = (clamped + 60) / 50; // -60 to -10 = 50 range
+  // Adjusted range: -45 (quiet) to -18 (normal speech peaks)
+  const clamped = Math.max(-45, Math.min(-18, db));
+  const normalized = (clamped + 45) / 27;
   const index = Math.min(
     WAVE_CHARS.length - 1,
     Math.floor(normalized * WAVE_CHARS.length),
@@ -49,9 +48,9 @@ export async function record(verbose = false): Promise<RecordingResult> {
   const wavPath = path.join(tmpDir, "recording.wav");
 
   return new Promise((resolve, reject) => {
-    // Initialize waveform buffer with dots
+    // Initialize waveform buffer
     let waveWidth = getWaveWidth();
-    const waveBuffer: string[] = new Array(waveWidth).fill("·");
+    const waveBuffer: string[] = new Array(waveWidth).fill(" ");
     let currentDb = -60;
 
     // Spawn FFmpeg with ebur128 filter to get volume levels
