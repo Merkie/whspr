@@ -5,10 +5,11 @@ import os from "os";
 import chalk from "chalk";
 
 const MAX_DURATION_SECONDS = 900; // 15 minutes
-const WAVE_WIDTH = 60;
+const DEFAULT_WAVE_WIDTH = 60;
+const STATUS_TEXT_WIDTH = 45; // " Recording [00:00 / 15:00] Press Enter to stop"
 
 // Characters from quiet to loud
-const WAVE_CHARS = ["·", "∙", "─", "═", "━", "▬", "▒", "▓", "█"];
+const WAVE_CHARS = ["·", "─", "═", "━", "▬", "█", "█"];
 
 function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
@@ -23,31 +24,55 @@ function dbToChar(db: number): string {
   const normalized = (clamped + 60) / 50; // -60 to -10 = 50 range
   const index = Math.min(
     WAVE_CHARS.length - 1,
-    Math.floor(normalized * WAVE_CHARS.length)
+    Math.floor(normalized * WAVE_CHARS.length),
   );
   return WAVE_CHARS[index];
 }
 
-export async function record(verbose = false): Promise<string> {
+function getWaveWidth(): number {
+  const termWidth = process.stdout.columns || 80;
+  // If terminal is wide enough for single line, use default
+  if (termWidth >= DEFAULT_WAVE_WIDTH + STATUS_TEXT_WIDTH) {
+    return DEFAULT_WAVE_WIDTH;
+  }
+  // Otherwise, use full terminal width for wave (will wrap text to next line)
+  return Math.max(10, termWidth - 2);
+}
+
+export interface RecordingResult {
+  path: string;
+  durationSeconds: number;
+}
+
+export async function record(verbose = false): Promise<RecordingResult> {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "whisper-"));
   const wavPath = path.join(tmpDir, "recording.wav");
 
   return new Promise((resolve, reject) => {
     // Initialize waveform buffer with dots
-    const waveBuffer: string[] = new Array(WAVE_WIDTH).fill("·");
+    let waveWidth = getWaveWidth();
+    const waveBuffer: string[] = new Array(waveWidth).fill("·");
     let currentDb = -60;
 
     // Spawn FFmpeg with ebur128 filter to get volume levels
-    const ffmpeg: ChildProcess = spawn("ffmpeg", [
-      "-f", "avfoundation",
-      "-i", ":0",
-      "-af", "ebur128=peak=true",
-      "-t", MAX_DURATION_SECONDS.toString(),
-      "-y",
-      wavPath,
-    ], {
-      stdio: ["pipe", "pipe", "pipe"],
-    });
+    const ffmpeg: ChildProcess = spawn(
+      "ffmpeg",
+      [
+        "-f",
+        "avfoundation",
+        "-i",
+        ":0",
+        "-af",
+        "ebur128=peak=true",
+        "-t",
+        MAX_DURATION_SECONDS.toString(),
+        "-y",
+        wavPath,
+      ],
+      {
+        stdio: ["pipe", "pipe", "pipe"],
+      },
+    );
 
     let elapsedSeconds = 0;
     let stopped = false;
@@ -56,9 +81,20 @@ export async function record(verbose = false): Promise<string> {
       const elapsed = formatTime(elapsedSeconds);
       const max = formatTime(MAX_DURATION_SECONDS);
       const wave = waveBuffer.join("");
-      process.stdout.write(
-        `\x1b[2K\r${chalk.cyan(wave)} ${chalk.blue("Recording")} [${chalk.yellow(elapsed)} / ${max}] ${chalk.gray("Press Enter to stop")}`
-      );
+      const termWidth = process.stdout.columns || 80;
+      const singleLineWidth = waveWidth + STATUS_TEXT_WIDTH;
+
+      if (termWidth >= singleLineWidth) {
+        // Single line layout
+        process.stdout.write(
+          `\x1b[2K\r${chalk.cyan(wave)} ${chalk.blue("Recording")} [${chalk.yellow(elapsed)} / ${max}] ${chalk.gray("Press Enter to stop")}`,
+        );
+      } else {
+        // Two line layout: wave on first line, status on second
+        process.stdout.write(
+          `\x1b[2K\r${chalk.cyan(wave)}\n\x1b[2K${chalk.blue("Recording")} [${chalk.yellow(elapsed)} / ${max}] ${chalk.gray("Press Enter to stop")}\x1b[A\r`,
+        );
+      }
     }
 
     // Update timer every second
@@ -125,15 +161,23 @@ export async function record(verbose = false): Promise<string> {
     ffmpeg.on("close", (code) => {
       clearInterval(timer);
       clearInterval(waveTimer);
-      process.stdout.write("\x1b[2K\r"); // Clear the line
+      const termWidth = process.stdout.columns || 80;
+      const singleLineWidth = waveWidth + STATUS_TEXT_WIDTH;
+      if (termWidth >= singleLineWidth) {
+        process.stdout.write("\x1b[2K\r"); // Clear the line
+      } else {
+        process.stdout.write("\x1b[2K\n\x1b[2K\x1b[A\r"); // Clear both lines
+      }
 
       if (stopped || code === 0 || code === 255) {
         // FFmpeg returns 255 when interrupted with SIGINT
         if (fs.existsSync(wavPath)) {
           if (verbose) {
-            console.log(chalk.green(`Recording complete (${formatTime(elapsedSeconds)})`));
+            console.log(
+              chalk.green(`Recording complete (${formatTime(elapsedSeconds)})`),
+            );
           }
-          resolve(wavPath);
+          resolve({ path: wavPath, durationSeconds: elapsedSeconds });
         } else {
           reject(new Error("Recording failed: no output file created"));
         }
@@ -159,15 +203,22 @@ export async function convertToMp3(wavPath: string): Promise<string> {
   const mp3Path = wavPath.replace(/\.wav$/, ".mp3");
 
   return new Promise((resolve, reject) => {
-    const ffmpeg = spawn("ffmpeg", [
-      "-i", wavPath,
-      "-codec:a", "libmp3lame",
-      "-qscale:a", "2",
-      "-y",
-      mp3Path,
-    ], {
-      stdio: ["pipe", "pipe", "pipe"],
-    });
+    const ffmpeg = spawn(
+      "ffmpeg",
+      [
+        "-i",
+        wavPath,
+        "-codec:a",
+        "libmp3lame",
+        "-qscale:a",
+        "2",
+        "-y",
+        mp3Path,
+      ],
+      {
+        stdio: ["pipe", "pipe", "pipe"],
+      },
+    );
 
     ffmpeg.on("close", (code) => {
       if (code === 0) {

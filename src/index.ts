@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { record, convertToMp3 } from "./recorder.js";
+import { record, convertToMp3, RecordingResult } from "./recorder.js";
 import { transcribe } from "./transcribe.js";
 import { postprocess } from "./postprocess.js";
 import { copyToClipboard } from "./utils/clipboard.js";
@@ -18,14 +18,24 @@ function clearStatus() {
   process.stdout.write("\x1b[2K\r");
 }
 
+function formatDuration(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  if (mins > 0) {
+    return `${mins}m ${secs}s`;
+  }
+  return `${secs}s`;
+}
+
 async function main() {
   try {
     // 1. Record audio
-    const wavPath = await record(verbose);
+    const recording = await record(verbose);
+    const processStart = Date.now();
 
     // 2. Convert to MP3
     status("Converting to MP3...");
-    const mp3Path = await convertToMp3(wavPath);
+    const mp3Path = await convertToMp3(recording.path);
 
     try {
       // 3. Transcribe with Whisper
@@ -53,9 +63,39 @@ async function main() {
 
       // 6. Output and copy
       clearStatus();
-      console.log(fixedText);
+      const processTime = ((Date.now() - processStart) / 1000).toFixed(1);
+      const wordCount = fixedText.trim().split(/\s+/).filter(w => w.length > 0).length;
+      const charCount = fixedText.length;
+
+      // Log stats
+      console.log(
+        chalk.dim("Audio: ") + chalk.white(formatDuration(recording.durationSeconds)) +
+        chalk.dim(" • Processing: ") + chalk.white(processTime + "s")
+      );
+
+      // Draw box
+      const termWidth = Math.min(process.stdout.columns || 60, 80);
+      const lineWidth = termWidth - 2;
+      const label = " TRANSCRIPT ";
+      console.log(chalk.dim("┌─") + chalk.cyan(label) + chalk.dim("─".repeat(lineWidth - label.length - 1) + "┐"));
+      const lines = fixedText.split("\n");
+      for (const line of lines) {
+        // Wrap long lines
+        let remaining = line;
+        while (remaining.length > 0) {
+          const chunk = remaining.slice(0, lineWidth - 2);
+          remaining = remaining.slice(lineWidth - 2);
+          console.log(chalk.dim("│ ") + chalk.white(chunk.padEnd(lineWidth - 2)) + chalk.dim(" │"));
+        }
+        if (line.length === 0) {
+          console.log(chalk.dim("│ " + " ".repeat(lineWidth - 2) + " │"));
+        }
+      }
+      const stats = ` ${wordCount} words • ${charCount} chars `;
+      const bottomLine = "─".repeat(lineWidth - stats.length - 1) + " ";
+      console.log(chalk.dim("└" + bottomLine) + chalk.dim(stats) + chalk.dim("┘"));
       await copyToClipboard(fixedText);
-      console.log(chalk.gray("(Copied to clipboard)"));
+      console.log(chalk.green("✓") + chalk.gray(" Copied to clipboard"));
 
       // 7. Clean up
       fs.unlinkSync(mp3Path);
