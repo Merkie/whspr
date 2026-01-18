@@ -6,7 +6,7 @@ import chalk from "chalk";
 
 const MAX_DURATION_SECONDS = 900; // 15 minutes
 const DEFAULT_WAVE_WIDTH = 60;
-const STATUS_TEXT_WIDTH = 45; // " Recording [00:00 / 15:00] Press Enter to stop"
+const BRACKET_WIDTH = 2; // For "[" and "]" wrapping the waveform
 
 // Horizontal bar characters for waveform (quiet to loud)
 const WAVE_CHARS = ["·", "-", "=", "≡", "■", "█"];
@@ -30,12 +30,9 @@ function dbToChar(db: number): string {
 
 function getWaveWidth(): number {
   const termWidth = process.stdout.columns || 80;
-  // If terminal is wide enough for single line, use default
-  if (termWidth >= DEFAULT_WAVE_WIDTH + STATUS_TEXT_WIDTH) {
-    return DEFAULT_WAVE_WIDTH;
-  }
-  // Otherwise, use full terminal width for wave (will wrap text to next line)
-  return Math.max(10, termWidth - 2);
+  // Use full terminal width minus brackets and small margin
+  const availableWidth = termWidth - BRACKET_WIDTH - 2;
+  return Math.max(10, Math.min(DEFAULT_WAVE_WIDTH, availableWidth));
 }
 
 export interface RecordingResult {
@@ -81,20 +78,11 @@ export async function record(verbose = false): Promise<RecordingResult> {
       const elapsed = formatTime(elapsedSeconds);
       const max = formatTime(MAX_DURATION_SECONDS);
       const wave = waveBuffer.join("");
-      const termWidth = process.stdout.columns || 80;
-      const singleLineWidth = waveWidth + STATUS_TEXT_WIDTH;
 
-      if (termWidth >= singleLineWidth) {
-        // Single line layout
-        process.stdout.write(
-          `\x1b[2K\r${chalk.cyan(wave)} ${chalk.blue("Recording")} [${chalk.yellow(elapsed)} / ${max}] ${chalk.gray("Press Enter to stop")}`,
-        );
-      } else {
-        // Two line layout: wave on first line, status on second
-        process.stdout.write(
-          `\x1b[2K\r${chalk.cyan(wave)}\n\x1b[2K${chalk.blue("Recording")} [${chalk.yellow(elapsed)} / ${max}] ${chalk.gray("Press Enter to stop")}\x1b[A\r`,
-        );
-      }
+      // Always render waveform on its own line, wrapped in brackets
+      process.stdout.write(
+        `\x1b[2K\r${chalk.cyan(`[${wave}]`)}\n\x1b[2K${chalk.blue("Recording")} [${chalk.yellow(elapsed)} / ${max}] ${chalk.gray("Press Enter to stop")}\x1b[A\r`,
+      );
     }
 
     // Update timer every second
@@ -166,13 +154,8 @@ export async function record(verbose = false): Promise<RecordingResult> {
     ffmpeg.on("close", (code) => {
       clearInterval(timer);
       clearInterval(waveTimer);
-      const termWidth = process.stdout.columns || 80;
-      const singleLineWidth = waveWidth + STATUS_TEXT_WIDTH;
-      if (termWidth >= singleLineWidth) {
-        process.stdout.write("\x1b[2K\r"); // Clear the line
-      } else {
-        process.stdout.write("\x1b[2K\n\x1b[2K\x1b[A\r"); // Clear both lines
-      }
+      // Clear both lines (waveform and status)
+      process.stdout.write("\x1b[2K\n\x1b[2K\x1b[A\r");
 
       if (cancelled) {
         // User pressed Ctrl+C - clean up and reject
