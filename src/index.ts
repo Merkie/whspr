@@ -28,6 +28,14 @@ function formatDuration(seconds: number): string {
 }
 
 async function main() {
+  // Check for API key before recording
+  if (!process.env.GROQ_API_KEY) {
+    console.error(chalk.red("Error: GROQ_API_KEY environment variable is not set"));
+    console.log(chalk.gray("Get your API key at https://console.groq.com/keys"));
+    console.log(chalk.gray("Then run: export GROQ_API_KEY=\"your-api-key\""));
+    process.exit(1);
+  }
+
   try {
     // 1. Record audio
     const recording = await record(verbose);
