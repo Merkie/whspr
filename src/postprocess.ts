@@ -1,15 +1,15 @@
 import { generateObject } from "ai";
 import { z } from "zod";
 import { withRetry } from "./utils/retry.js";
-import { groq } from "./utils/groq.js";
-
-const MODEL = "openai/gpt-oss-120b";
+import { getProvider, ProviderType } from "./utils/providers.js";
 
 const outputSchema = z.object({
   fixed_transcription: z.string(),
 });
 
 export interface PostprocessOptions {
+  provider: ProviderType;
+  modelName: string;
   systemPrompt: string;
   customPromptPrefix: string;
   transcriptionPrefix: string;
@@ -20,12 +20,13 @@ export async function postprocess(
   customPrompt: string | null,
   options: PostprocessOptions,
 ): Promise<string> {
-  const { systemPrompt, customPromptPrefix, transcriptionPrefix } = options;
+  const { provider, modelName, systemPrompt, customPromptPrefix, transcriptionPrefix } = options;
+  const providerInstance = getProvider(provider);
 
   const result = await withRetry(
     async () => {
       const response = await generateObject({
-        model: groq(MODEL),
+        model: providerInstance(modelName),
         schema: outputSchema,
         messages: [
           {

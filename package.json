@@ -29,6 +29,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^1.x",
     "@ai-sdk/groq": "^1.x",
     "ai": "^4.x",
     "chalk": "^5.x",

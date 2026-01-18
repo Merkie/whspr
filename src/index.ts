@@ -8,14 +8,25 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 
+import { ProviderType } from "./utils/providers.js";
+
 // Default prompts (can be overridden in settings.json)
 export const DEFAULTS = {
   transcriptionModel: "whisper-large-v3-turbo" as const,
   language: "en",
-  systemPrompt:
-    'Your task is to clean up/fix transcribed text generated from mic input by the user according to the user\'s own prompt, this prompt may contain custom vocabulary, instructions, etc. Please return the user\'s transcription with the fixes made (e.g. the AI might hear "PostgreSQL" as "post crest QL" you need to use your own reasoning to fix these mistakes in the transcription)',
+  model: "groq:openai/gpt-oss-120b" as const,
+  systemPrompt: `Your task is to fix spelling errors and proper names in transcribed text.
+IMPORTANT: Only correct spelling mistakes and proper nouns (names, places, technical terms).
+Do NOT change wording, phrasing, or sentence structure.
+Do NOT rephrase or rewrite any part of the transcription.
+Preserve the original voice and speaking style exactly as transcribed.`,
   customPromptPrefix: "Here's my custom user prompt:",
   transcriptionPrefix: "Here's my raw transcription output that I need you to edit:",
+};
+
+// Default settings that will be written to settings.json
+const DEFAULT_SETTINGS: WhsprSettings = {
+  model: DEFAULTS.model,
 };
 
 // Settings interface
@@ -24,6 +35,7 @@ export interface WhsprSettings {
   suffix?: string; // Appended to all transcriptions (e.g., "\n\n(Transcribed via Whisper)")
   transcriptionModel?: "whisper-large-v3" | "whisper-large-v3-turbo";
   language?: string; // ISO 639-1 language code (e.g., "en", "zh", "es")
+  model?: string; // Post-processing model in "provider:model-name" format (e.g., "groq:openai/gpt-oss-120b")
   systemPrompt?: string; // System prompt for post-processing
   customPromptPrefix?: string; // Prefix before custom prompt content
   transcriptionPrefix?: string; // Prefix before raw transcription
@@ -32,12 +44,34 @@ export interface WhsprSettings {
 const WHSPR_DIR = path.join(os.homedir(), ".whspr");
 const SETTINGS_PATH = path.join(WHSPR_DIR, "settings.json");
 
+function parseModelProvider(model: string): { provider: ProviderType; modelName: string } {
+  const colonIndex = model.indexOf(":");
+  if (colonIndex === -1) {
+    throw new Error(`Invalid model format: "${model}". Expected "provider:model-name" (e.g., "groq:openai/gpt-oss-120b")`);
+  }
+  const provider = model.slice(0, colonIndex) as ProviderType;
+  const modelName = model.slice(colonIndex + 1);
+  if (provider !== "groq" && provider !== "anthropic") {
+    throw new Error(`Unknown provider: "${provider}". Supported providers: groq, anthropic`);
+  }
+  return { provider, modelName };
+}
+
 function loadSettings(): WhsprSettings {
   try {
-    if (fs.existsSync(SETTINGS_PATH)) {
-      const content = fs.readFileSync(SETTINGS_PATH, "utf-8");
-      return JSON.parse(content) as WhsprSettings;
+    // Ensure ~/.whspr/ directory exists
+    if (!fs.existsSync(WHSPR_DIR)) {
+      fs.mkdirSync(WHSPR_DIR, { recursive: true });
     }
+
+    // Create settings.json with defaults if it doesn't exist
+    if (!fs.existsSync(SETTINGS_PATH)) {
+      fs.writeFileSync(SETTINGS_PATH, JSON.stringify(DEFAULT_SETTINGS, null, 2) + "\n", "utf-8");
+      return { ...DEFAULT_SETTINGS };
+    }
+
+    const content = fs.readFileSync(SETTINGS_PATH, "utf-8");
+    return JSON.parse(content) as WhsprSettings;
   } catch (error) {
     // Silently ignore invalid settings file
   }
@@ -107,11 +141,24 @@ function formatDuration(seconds: number): string {
 }
 
 async function main() {
-  // Check for API key before recording
+  // Parse model configuration
+  const modelConfig = settings.model ?? DEFAULTS.model;
+  const { provider, modelName } = parseModelProvider(modelConfig);
+
+  // Check for required API keys before recording
+  // Always need GROQ_API_KEY for Whisper transcription
   if (!process.env.GROQ_API_KEY) {
     console.error(chalk.red("Error: GROQ_API_KEY environment variable is not set"));
     console.log(chalk.gray("Get your API key at https://console.groq.com/keys"));
     console.log(chalk.gray("Then run: export GROQ_API_KEY=\"your-api-key\""));
+    process.exit(1);
+  }
+
+  // Check for provider-specific API key for post-processing
+  if (provider === "anthropic" && !process.env.ANTHROPIC_API_KEY) {
+    console.error(chalk.red("Error: ANTHROPIC_API_KEY environment variable is not set"));
+    console.log(chalk.gray("Get your API key at https://console.anthropic.com/settings/keys"));
+    console.log(chalk.gray("Then run: export ANTHROPIC_API_KEY=\"your-api-key\""));
     process.exit(1);
   }
 
@@ -148,6 +195,8 @@ async function main() {
       // 5. Post-process
       status("Post-processing...");
       let fixedText = await postprocess(rawText, customPrompt, {
+        provider,
+        modelName,
         systemPrompt: settings.systemPrompt ?? DEFAULTS.systemPrompt,
         customPromptPrefix: settings.customPromptPrefix ?? DEFAULTS.customPromptPrefix,
         transcriptionPrefix: settings.transcriptionPrefix ?? DEFAULTS.transcriptionPrefix,
