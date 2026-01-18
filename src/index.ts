@@ -47,14 +47,22 @@ async function main() {
         console.log(chalk.gray(`Raw: ${rawText}`));
       }
 
-      // 4. Read WHSPR.md if exists
+      // 4. Read WHSPR.md or WHISPER.md if exists
       const whsprMdPath = path.join(process.cwd(), "WHSPR.md");
-      const customPrompt = fs.existsSync(whsprMdPath)
-        ? fs.readFileSync(whsprMdPath, "utf-8")
-        : null;
+      const whisperMdPath = path.join(process.cwd(), "WHISPER.md");
+      let customPrompt: string | null = null;
+      let vocabFile: string | null = null;
+
+      if (fs.existsSync(whsprMdPath)) {
+        customPrompt = fs.readFileSync(whsprMdPath, "utf-8");
+        vocabFile = "WHSPR.md";
+      } else if (fs.existsSync(whisperMdPath)) {
+        customPrompt = fs.readFileSync(whisperMdPath, "utf-8");
+        vocabFile = "WHISPER.md";
+      }
 
       if (customPrompt && verbose) {
-        console.log(chalk.gray("Using custom vocabulary from WHSPR.md"));
+        console.log(chalk.gray(`Using custom vocabulary from ${vocabFile}`));
       }
 
       // 5. Post-process
