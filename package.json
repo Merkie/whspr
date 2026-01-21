@@ -1,6 +1,6 @@
 {
   "name": "whspr",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "description": "CLI tool for audio transcription with Groq Whisper API",
   "type": "module",
   "bin": {
