@@ -1,11 +1,6 @@
-import { generateText, Output } from "ai";
-import { z } from "zod";
+import { streamText } from "ai";
 import { withRetry } from "./utils/retry.js";
 import { getProvider, ProviderType } from "./utils/providers.js";
-
-const outputSchema = z.object({
-  fixed_transcription: z.string(),
-});
 
 export interface PostprocessOptions {
   provider: ProviderType;
@@ -13,6 +8,7 @@ export interface PostprocessOptions {
   systemPrompt: string;
   customPromptPrefix: string;
   transcriptionPrefix: string;
+  onProgress?: (progress: number) => void;
 }
 
 export async function postprocess(
@@ -26,20 +22,18 @@ export async function postprocess(
     systemPrompt,
     customPromptPrefix,
     transcriptionPrefix,
+    onProgress,
   } = options;
   const providerInstance = getProvider(provider);
 
   const result = await withRetry(
     async () => {
-      const response = await generateText({
+      const textStream = streamText({
         model: providerInstance(modelName),
-        output: Output.object({
-          schema: outputSchema,
-        }),
         messages: [
           {
             role: "system",
-            content: systemPrompt,
+            content: systemPrompt + "\n\nIMPORTANT: Output ONLY the corrected transcription text. Do not wrap it in JSON, markdown code blocks, or any other formatting. Just output the fixed text directly.",
           },
           {
             role: "user",
@@ -55,11 +49,23 @@ export async function postprocess(
           },
         ],
       });
-      return response.output;
+
+      let accumulated = "";
+      const rawLength = rawTranscription.length;
+
+      for await (const chunk of textStream.textStream) {
+        accumulated += chunk;
+        if (onProgress) {
+          const progress = Math.min(100, Math.round((accumulated.length / rawLength) * 100));
+          onProgress(progress);
+        }
+      }
+
+      return accumulated.trim();
     },
     3,
     "postprocess",
   );
 
-  return result.fixed_transcription;
+  return result;
 }

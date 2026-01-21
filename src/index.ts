@@ -192,14 +192,20 @@ async function main() {
         console.log(chalk.gray(`Using custom vocabulary from: ${vocabSources.join(" + ")}`));
       }
 
-      // 5. Post-process
-      status("Post-processing...");
+      // 5. Post-process with progress bar
+      status("Post-processing... 0%");
       let fixedText = await postprocess(rawText, customPrompt, {
         provider,
         modelName,
         systemPrompt: settings.systemPrompt ?? DEFAULTS.systemPrompt,
         customPromptPrefix: settings.customPromptPrefix ?? DEFAULTS.customPromptPrefix,
         transcriptionPrefix: settings.transcriptionPrefix ?? DEFAULTS.transcriptionPrefix,
+        onProgress: (progress) => {
+          const barWidth = 20;
+          const filled = Math.round((progress / 100) * barWidth);
+          const bar = "█".repeat(filled) + "░".repeat(barWidth - filled);
+          status(`Post-processing... [${bar}] ${progress}%`);
+        },
       });
 
       // 6. Apply suffix if configured
