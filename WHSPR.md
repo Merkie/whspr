@@ -1,10 +1,12 @@
 # Custom Vocabulary for whspr
 
 ## Project Names
+
 - whspr (the CLI tool, lowercase)
 - WHSPR.md (the custom vocabulary file)
 
 ## APIs and Services
+
 - Groq (AI inference platform)
 - Whisper (OpenAI's speech recognition model)
 - Anthropic (AI company, maker of Claude)
@@ -12,6 +14,7 @@
 - Vercel AI SDK
 
 ## Technical Terms
+
 - FFmpeg (multimedia framework)
 - avfoundation (macOS audio/video framework)
 - ebur128 (audio loudness standard)
@@ -23,6 +26,7 @@
 - WAV, MP3 (audio formats)
 
 ## Model Names
+
 - whisper-large-v3
 - whisper-large-v3-turbo
 - claude-sonnet

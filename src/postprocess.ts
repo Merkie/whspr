@@ -39,7 +39,9 @@ export async function postprocess(
         messages: [
           {
             role: "system",
-            content: systemPrompt + "\n\nIMPORTANT: Output ONLY the corrected transcription text. Do not wrap it in JSON, markdown code blocks, or any other formatting. Just output the fixed text directly.",
+            content:
+              systemPrompt +
+              "\n\nIMPORTANT: Output ONLY the corrected transcription text. Do not wrap it in JSON, markdown code blocks, or any other formatting. Just output the fixed text directly.",
           },
           {
             role: "user",
@@ -62,16 +64,20 @@ export async function postprocess(
       for await (const chunk of textStream.textStream) {
         accumulated += chunk;
         if (onProgress) {
-          const progress = Math.min(100, Math.round((accumulated.length / rawLength) * 100));
+          const progress = Math.min(
+            100,
+            Math.round((accumulated.length / rawLength) * 100),
+          );
           onProgress(progress);
         }
       }
 
       // Capture usage info after stream completes
       const usage = await textStream.usage;
-      const usageInfo: UsageInfo | undefined = usage?.inputTokens !== undefined && usage?.outputTokens !== undefined
-        ? { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens }
-        : undefined;
+      const usageInfo: UsageInfo | undefined =
+        usage?.inputTokens !== undefined && usage?.outputTokens !== undefined
+          ? { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens }
+          : undefined;
 
       return { text: accumulated.trim(), usage: usageInfo };
     },

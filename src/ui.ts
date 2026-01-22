@@ -34,8 +34,13 @@ export function renderStartupHeader(config: StartupConfig): void {
   const innerWidth = termWidth - 4; // Account for "│  " and " │"
 
   const headerLabel = " WHSPR ";
-  const topLine = BOX.topLeft + BOX.horizontal + colors.header.bold(headerLabel) +
-    colors.dim(BOX.horizontal.repeat(termWidth - headerLabel.length - 3) + BOX.topRight);
+  const topLine =
+    BOX.topLeft +
+    BOX.horizontal +
+    colors.header.bold(headerLabel) +
+    colors.dim(
+      BOX.horizontal.repeat(termWidth - headerLabel.length - 3) + BOX.topRight,
+    );
 
   console.log(topLine);
 
@@ -45,9 +50,10 @@ export function renderStartupHeader(config: StartupConfig): void {
   const modelLine = `${modelLabel}${modelValue}`;
   console.log(
     colors.dim(BOX.vertical + "  ") +
-    colors.metadata(modelLabel) + colors.white(modelValue) +
-    " ".repeat(Math.max(0, innerWidth - modelLine.length)) +
-    colors.dim(" " + BOX.vertical)
+      colors.metadata(modelLabel) +
+      colors.white(modelValue) +
+      " ".repeat(Math.max(0, innerWidth - modelLine.length)) +
+      colors.dim(" " + BOX.vertical),
   );
 
   // Vocab line (only show if sources exist)
@@ -57,14 +63,19 @@ export function renderStartupHeader(config: StartupConfig): void {
     const vocabLine = `${vocabLabel}${vocabValue}`;
     console.log(
       colors.dim(BOX.vertical + "  ") +
-      colors.metadata(vocabLabel) + colors.info(vocabValue) +
-      " ".repeat(Math.max(0, innerWidth - vocabLine.length)) +
-      colors.dim(" " + BOX.vertical)
+        colors.metadata(vocabLabel) +
+        colors.info(vocabValue) +
+        " ".repeat(Math.max(0, innerWidth - vocabLine.length)) +
+        colors.dim(" " + BOX.vertical),
     );
   }
 
   // Bottom border
-  console.log(colors.dim(BOX.bottomLeft + BOX.horizontal.repeat(termWidth - 2) + BOX.bottomRight));
+  console.log(
+    colors.dim(
+      BOX.bottomLeft + BOX.horizontal.repeat(termWidth - 2) + BOX.bottomRight,
+    ),
+  );
   console.log(); // Empty line after header
 }
 
@@ -76,8 +87,10 @@ export interface CompactStats {
 
 export function formatCompactStats(stats: CompactStats): string {
   let result =
-    colors.metadata("Audio: ") + colors.white(stats.audioDuration) +
-    colors.metadata(" \u2022 Processing: ") + colors.white(stats.processingTime);
+    colors.metadata("Audio: ") +
+    colors.white(stats.audioDuration) +
+    colors.metadata(" \u2022 Processing: ") +
+    colors.white(stats.processingTime);
 
   if (stats.cost) {
     result += colors.metadata(" \u2022 Cost: ") + colors.white(stats.cost);

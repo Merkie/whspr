@@ -39,6 +39,7 @@ Initialize whspr support in your project:
 ```
 
 This creates a `WHSPR.md` file in your project root populated with:
+
 - Project name and technologies
 - Common technical terms
 - Key file and function names
@@ -69,6 +70,7 @@ Remove whspr support from a project:
 ## Supported file names
 
 The plugin looks for these vocabulary files:
+
 - `WHSPR.md`
 - `WHISPER.md`
 - `.whspr.md`
@@ -90,10 +92,12 @@ whspr supports multiple AI providers for post-processing. Configure the model in
 ```
 
 Supported providers:
+
 - `groq` - Groq models (default, requires `GROQ_API_KEY`)
 - `anthropic` - Anthropic models (requires `ANTHROPIC_API_KEY`)
 
 Example configurations:
+
 ```json
 {"model": "groq:openai/gpt-oss-120b"}
 {"model": "anthropic:claude-sonnet-4-5-20250514"}
@@ -102,11 +106,13 @@ Example configurations:
 ## About whspr
 
 whspr is a CLI tool that:
+
 1. Records audio from your microphone
 2. Transcribes using Groq's Whisper API
 3. Post-processes with AI to fix errors using custom vocabulary from `WHSPR.md`
 
 The `WHSPR.md` file lets you define project-specific terms so the AI can correct common transcription errors like:
+
 - "cloud" -> "Claude"
 - "post crest QL" -> "PostgreSQL"
 - "cooper netties" -> "Kubernetes"

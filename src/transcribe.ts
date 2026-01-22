@@ -8,7 +8,7 @@ export type TranscriptionModel = "whisper-large-v3" | "whisper-large-v3-turbo";
 export async function transcribe(
   audioPath: string,
   model: TranscriptionModel = "whisper-large-v3-turbo",
-  language: string = "en"
+  language: string = "en",
 ): Promise<string> {
   const transcription = await groq.audio.transcriptions.create({
     file: fs.createReadStream(audioPath),

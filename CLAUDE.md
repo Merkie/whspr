@@ -38,6 +38,7 @@ npm link
 # Run the CLI
 whspr
 whspr --verbose
+whspr --pipe "claude"  # Pipe to Claude Code
 ```
 
 ## Environment
@@ -55,6 +56,14 @@ whspr --verbose
 - Failed recordings are saved to `~/.whspr/recordings/` for recovery
 - Custom vocabulary via `WHSPR.md` in current directory (global in `~/.whspr/` and/or local)
 - Settings stored in `~/.whspr/settings.json`
+- Cost calculation for Anthropic models (displayed after transcription)
+- Progress bar during post-processing
+- Pipe output to external commands (e.g., `whspr --pipe "claude"` to pipe directly to Claude Code)
+
+## CLI Flags
+
+- `--verbose`, `-v` - Enable verbose output
+- `--pipe <command>`, `-p <command>` - Pipe transcription to a command instead of clipboard (e.g., `--pipe "claude"`)
 
 ## API Flow
 
@@ -62,4 +71,24 @@ whspr --verbose
 2. Convert WAV → MP3
 3. Transcribe MP3 → text (Groq Whisper)
 4. Post-process text → fixed text (configurable provider: Groq or Anthropic)
-5. Copy result to clipboard
+5. Apply suffix (if configured)
+6. Either pipe to command (`--pipe`) or copy to clipboard
+7. Save transcription/audio files (if configured)
+
+## Settings
+
+Settings are stored in `~/.whspr/settings.json`. Available options:
+
+| Option                     | Type    | Description                                                                    |
+| -------------------------- | ------- | ------------------------------------------------------------------------------ |
+| `verbose`                  | boolean | Enable verbose output                                                          |
+| `suffix`                   | string  | Text appended to all transcriptions                                            |
+| `transcriptionModel`       | string  | Whisper model (`whisper-large-v3` or `whisper-large-v3-turbo`)                 |
+| `language`                 | string  | ISO 639-1 language code (e.g., `en`, `zh`)                                     |
+| `model`                    | string  | Post-processing model in `provider:model-name` format                          |
+| `systemPrompt`             | string  | System prompt for AI post-processing                                           |
+| `customPromptPrefix`       | string  | Prefix before custom prompt content                                            |
+| `transcriptionPrefix`      | string  | Prefix before raw transcription                                                |
+| `alwaysSaveTranscriptions` | boolean | Save transcription text files to `~/.whspr/transcriptions/`                    |
+| `alwaysSaveAudio`          | boolean | Save audio MP3 files to `~/.whspr/recordings/`                                 |
+| `saveTranscriptionsToCwd`  | boolean | Save transcriptions to current directory instead of `~/.whspr/transcriptions/` |

@@ -1,17 +1,17 @@
 // Model pricing in USD per million tokens
 export interface ModelPricing {
-  input: number;  // $/1M input tokens
+  input: number; // $/1M input tokens
   output: number; // $/1M output tokens
 }
 
 export const MODEL_PRICING: Record<string, ModelPricing> = {
   // Groq models
-  "openai/gpt-oss-120b": { input: 0.00, output: 0.00 }, // Free tier pricing
+  "openai/gpt-oss-120b": { input: 0.0, output: 0.0 }, // Free tier pricing
 
   // Anthropic models
-  "claude-sonnet-4-5": { input: 3.00, output: 15.00 },
-  "claude-haiku-4-5": { input: 0.80, output: 4.00 },
-  "claude-opus-4-5": { input: 15.00, output: 75.00 },
+  "claude-sonnet-4-5": { input: 3.0, output: 15.0 },
+  "claude-haiku-4-5": { input: 0.8, output: 4.0 },
+  "claude-opus-4-5": { input: 15.0, output: 75.0 },
 };
 
 export interface UsageInfo {

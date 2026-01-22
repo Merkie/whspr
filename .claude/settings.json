@@ -11,10 +11,7 @@
       "Bash(git:*)",
       "Bash(whspr:*)"
     ],
-    "deny": [
-      "Bash(rm -rf:*)",
-      "Bash(sudo:*)"
-    ]
+    "deny": ["Bash(rm -rf:*)", "Bash(sudo:*)"]
   },
   "hooks": {
     "PostToolUse": [

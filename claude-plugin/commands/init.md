@@ -9,6 +9,7 @@ Initialize whspr (voice transcription) support for this project by creating a WH
 ## What is whspr?
 
 whspr is a CLI tool (npm package: `whspr`, often aliased as `whisper`) that:
+
 1. Records audio from your microphone
 2. Transcribes speech using Groq's Whisper API
 3. Post-processes transcriptions with AI to fix errors using custom vocabulary
@@ -25,22 +26,28 @@ Create a `WHSPR.md` file in the project root with the following structure:
 This file helps whspr (voice transcription) correct transcription errors by providing project-specific context.
 
 ## Project Info
+
 - Project name: [name]
 - Main technologies: [list key technologies]
 
 ## Common Terms
+
 <!-- Use simple sentences to establish vocabulary context -->
+
 My project uses PostgreSQL for the database.
 The main framework is Kubernetes.
 We use Claude for AI assistance.
 
 ## File Names
+
 <!-- Important files that might be referenced in voice commands -->
 
 ## Function/Class Names
+
 <!-- Key identifiers that should be transcribed correctly -->
 
 ## Naming Conventions
+
 <!-- Patterns used in this codebase -->
 ```
 
