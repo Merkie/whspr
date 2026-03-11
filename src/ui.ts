@@ -35,8 +35,7 @@ export function renderStartupHeader(config: StartupConfig): void {
 
   const headerLabel = " WHSPR ";
   const topLine =
-    BOX.topLeft +
-    BOX.horizontal +
+    colors.dim(BOX.topLeft + BOX.horizontal) +
     colors.header.bold(headerLabel) +
     colors.dim(
       BOX.horizontal.repeat(termWidth - headerLabel.length - 3) + BOX.topRight,
