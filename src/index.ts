@@ -11,6 +11,7 @@ import {
   colors,
   BOX,
 } from "./ui.js";
+import { selectRecording } from "./selector.js";
 import fs from "fs";
 import path from "path";
 import os from "os";
@@ -172,6 +173,7 @@ function getPipeCommand(): string | null {
 }
 
 const pipeCommand = getPipeCommand();
+const fromRecording = process.argv.includes("--from-recording");
 
 // Execute a command with text piped to stdin
 function pipeToCommand(text: string, command: string): Promise<void> {
@@ -262,13 +264,23 @@ async function main() {
   });
 
   try {
-    // 1. Record audio
-    const recording = await record(verbose);
-    const processStart = Date.now();
+    let mp3Path: string;
+    let audioDuration: number | null = null;
 
-    // 2. Convert to MP3
-    status("Converting to MP3...");
-    const mp3Path = await convertToMp3(recording.path);
+    if (fromRecording) {
+      // Select from saved recordings
+      mp3Path = await selectRecording(RECORDINGS_DIR);
+    } else {
+      // 1. Record audio
+      const recording = await record(verbose);
+      audioDuration = recording.durationSeconds;
+
+      // 2. Convert to MP3
+      status("Converting to MP3...");
+      mp3Path = await convertToMp3(recording.path);
+    }
+
+    const processStart = Date.now();
 
     try {
       // 3. Transcribe with Whisper
@@ -379,7 +391,7 @@ async function main() {
       );
       console.log(
         formatCompactStats({
-          audioDuration: formatDuration(recording.durationSeconds),
+          audioDuration: audioDuration != null ? formatDuration(audioDuration) : "—",
           processingTime: processTime + "s",
           cost: costString,
         }),
@@ -426,8 +438,8 @@ async function main() {
         );
       }
 
-      // 8. Save audio if configured
-      if (settings.alwaysSaveAudio) {
+      // 8. Save audio if configured (skip if re-processing a saved recording)
+      if (settings.alwaysSaveAudio && !fromRecording) {
         fs.mkdirSync(RECORDINGS_DIR, { recursive: true });
         const audioFilename = generateTimestampedFilename(".mp3");
         const audioSavePath = path.join(RECORDINGS_DIR, audioFilename);
@@ -438,10 +450,17 @@ async function main() {
         );
       }
 
-      // 9. Clean up
-      fs.unlinkSync(mp3Path);
+      // 9. Clean up (don't delete the user's saved recording)
+      if (!fromRecording) {
+        fs.unlinkSync(mp3Path);
+      }
     } catch (error) {
       clearStatus();
+      if (fromRecording) {
+        // Don't re-save — the recording is already in the recordings dir
+        console.error(colors.error(`Error: ${error}`));
+        process.exit(1);
+      }
       // Save recording on failure (post-processing failed, save audio only)
       fs.mkdirSync(RECORDINGS_DIR, { recursive: true });
       const backupPath = path.join(

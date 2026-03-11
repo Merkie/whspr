@@ -16,6 +16,7 @@ A CLI tool that records audio from your microphone, transcribes it using Groq's 
   - `recorder.ts` - FFmpeg audio recording with waveform TUI
   - `transcribe.ts` - Groq Whisper API integration
   - `postprocess.ts` - AI post-processing for corrections
+  - `selector.ts` - Interactive recording picker for `--from-recording`
   - `utils/` - Shared utilities (retry, clipboard, providers)
 - `bin/whspr.js` - CLI entrypoint
 - `dist/` - Compiled output
@@ -38,7 +39,8 @@ npm link
 # Run the CLI
 whspr
 whspr --verbose
-whspr --pipe "claude"  # Pipe to Claude Code
+whspr --pipe "claude"        # Pipe to Claude Code
+whspr --from-recording       # Re-transcribe a saved recording
 ```
 
 ## Environment
@@ -54,6 +56,7 @@ whspr --pipe "claude"  # Pipe to Claude Code
 - Recording uses FFmpeg's avfoundation (macOS) with ebur128 for volume levels
 - Max recording duration: 15 minutes
 - Failed recordings are saved to `~/.whspr/recordings/` for recovery
+- Re-transcribe saved recordings with `--from-recording` (interactive selector)
 - Custom vocabulary via `WHSPR.md` in current directory (global in `~/.whspr/` and/or local)
 - Settings stored in `~/.whspr/settings.json`
 - Cost calculation for Anthropic models (displayed after transcription)
@@ -64,6 +67,7 @@ whspr --pipe "claude"  # Pipe to Claude Code
 
 - `--verbose`, `-v` - Enable verbose output
 - `--pipe <command>`, `-p <command>` - Pipe transcription to a command instead of clipboard (e.g., `--pipe "claude"`)
+- `--from-recording` - Select and re-transcribe a saved recording from `~/.whspr/recordings/`
 
 ## API Flow
 

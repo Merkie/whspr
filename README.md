@@ -48,6 +48,9 @@ whspr --verbose
 whspr --pipe "pbcopy"              # Explicit clipboard
 whspr --pipe "claude"              # Pipe directly to Claude Code
 whspr -p "cat >> notes.txt"        # Append to a file
+
+# Re-transcribe a saved recording
+whspr --from-recording
 ```
 
 Press **Enter** to stop recording.
@@ -64,6 +67,7 @@ Press **Enter** to stop recording.
 - Configurable settings via `~/.whspr/settings.json`
 - Automatic clipboard copy (or pipe to any command with `--pipe`)
 - Optional auto-save for transcriptions and audio files
+- Re-transcribe saved recordings with `--from-recording`
 
 ## Settings
 
@@ -198,7 +202,7 @@ When both exist, they are combined (global first, then local).
 9. Pipes to command (`--pipe`) or copies to clipboard
 10. Saves transcription/audio files (if configured)
 
-If transcription fails, the recording is saved to `~/.whspr/recordings/` for manual recovery.
+If transcription fails, the recording is saved to `~/.whspr/recordings/`. Use `whspr --from-recording` to select and re-transcribe any saved recording.
 
 ## License
 

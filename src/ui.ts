@@ -31,7 +31,7 @@ export interface StartupConfig {
 
 export function renderStartupHeader(config: StartupConfig): void {
   const termWidth = Math.min(process.stdout.columns || 60, 66);
-  const innerWidth = termWidth - 4; // Account for "│  " and " │"
+  const innerWidth = termWidth - 5; // Account for "│  " (3) and " │" (2)
 
   const headerLabel = " WHSPR ";
   const topLine =
