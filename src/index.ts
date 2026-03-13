@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { record, convertToMp3, RecordingResult } from "./recorder.js";
+import { record, convertToMp3, checkFfmpeg, RecordingResult } from "./recorder.js";
 import { transcribe } from "./transcribe.js";
 import { postprocess } from "./postprocess.js";
 import { copyToClipboard } from "./utils/clipboard.js";
@@ -218,6 +218,9 @@ function formatDuration(seconds: number): string {
 }
 
 async function main() {
+  // Ensure FFmpeg is available before doing anything
+  checkFfmpeg();
+
   // Parse model configuration
   const modelConfig = settings.model ?? DEFAULTS.model;
   const { provider, modelName } = parseModelProvider(modelConfig);

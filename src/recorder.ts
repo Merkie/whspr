@@ -1,4 +1,4 @@
-import { spawn, ChildProcess } from "child_process";
+import { spawn, spawnSync, ChildProcess } from "child_process";
 import fs from "fs";
 import path from "path";
 import os from "os";
@@ -6,6 +6,85 @@ import chalk from "chalk";
 
 const MAX_DURATION_SECONDS = 900; // 15 minutes
 const DEFAULT_WAVE_WIDTH = 60;
+
+function getAudioInput(): {
+  format: string;
+  device: string;
+  extraArgs: string[];
+} {
+  switch (process.platform) {
+    case "darwin":
+      return {
+        format: "avfoundation",
+        device: ":0",
+        extraArgs: ["-thread_queue_size", "1024"],
+      };
+    case "linux":
+      return { format: "pulse", device: "default", extraArgs: [] };
+    case "win32": {
+      const device = detectWindowsAudioDevice();
+      return { format: "dshow", device: `audio=${device}`, extraArgs: [] };
+    }
+    default:
+      throw new Error(
+        `Unsupported platform: ${process.platform}. Supported: macOS, Linux, Windows`,
+      );
+  }
+}
+
+function detectWindowsAudioDevice(): string {
+  const result = spawnSync("ffmpeg", ["-list_devices", "true", "-f", "dshow", "-i", "dummy"], {
+    encoding: "utf-8",
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+
+  // ffmpeg exits with error when listing devices, but prints the list to stderr
+  const stderr = result.stderr || "";
+  const lines = stderr.split("\n");
+  let inAudioSection = false;
+
+  for (const line of lines) {
+    if (line.includes("DirectShow audio devices")) {
+      inAudioSection = true;
+      continue;
+    }
+    if (inAudioSection) {
+      const match = line.match(/"(.+?)"/);
+      if (match) {
+        return match[1];
+      }
+    }
+  }
+
+  throw new Error(
+    "No audio input device found. Make sure a microphone is connected.",
+  );
+}
+
+export function checkFfmpeg(): void {
+  const result = spawnSync("ffmpeg", ["-version"], { stdio: "pipe" });
+  if (result.error) {
+    console.error(
+      chalk.red("Error: FFmpeg is not installed or not found in PATH."),
+    );
+    console.log();
+    if (process.platform === "darwin") {
+      console.log(chalk.yellow("Install with Homebrew:"));
+      console.log("  brew install ffmpeg");
+    } else if (process.platform === "linux") {
+      console.log(chalk.yellow("Install with your package manager:"));
+      console.log("  sudo apt install ffmpeg    # Debian/Ubuntu");
+      console.log("  sudo dnf install ffmpeg    # Fedora");
+      console.log("  sudo pacman -S ffmpeg      # Arch");
+    } else if (process.platform === "win32") {
+      console.log(chalk.yellow("Install with a package manager:"));
+      console.log("  choco install ffmpeg       # Chocolatey");
+      console.log("  scoop install ffmpeg       # Scoop");
+      console.log("  winget install ffmpeg      # WinGet");
+    }
+    process.exit(1);
+  }
+}
 const BRACKET_WIDTH = 2; // For "[" and "]" wrapping the waveform
 
 // Horizontal bar characters for waveform (quiet to loud)
@@ -52,16 +131,15 @@ export async function record(verbose = false): Promise<RecordingResult> {
     let cancelled = false;
 
     // Spawn FFmpeg with ebur128 filter to get volume levels
-    // Use asplit to duplicate audio: one copy for analysis (ebur128 -> null), one clean copy to file
+    const { format, device, extraArgs } = getAudioInput();
     const ffmpeg: ChildProcess = spawn(
       "ffmpeg",
       [
         "-f",
-        "avfoundation",
-        "-thread_queue_size",
-        "1024",
+        format,
+        ...extraArgs,
         "-i",
-        ":0",
+        device,
         "-af",
         "ebur128=peak=true",
         "-t",
@@ -143,8 +221,12 @@ export async function record(verbose = false): Promise<RecordingResult> {
         process.stdin.setRawMode(false);
         process.stdin.pause();
 
-        // Send SIGINT to FFmpeg to stop gracefully
-        ffmpeg.kill("SIGINT");
+        // Stop FFmpeg gracefully — Windows doesn't support SIGINT for child processes
+        if (process.platform === "win32") {
+          ffmpeg.stdin?.write("q");
+        } else {
+          ffmpeg.kill("SIGINT");
+        }
       }
     };
 
