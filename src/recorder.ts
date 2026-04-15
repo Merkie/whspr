@@ -193,13 +193,12 @@ export async function record(verbose = false): Promise<RecordingResult> {
     ffmpeg.stderr?.on("data", (data: Buffer) => {
       const output = data.toString();
 
-      // Look for FTPK (frame true peak) from ebur128 output
-      // Format: "FTPK: -XX.X -XX.X dBFS"
-      const ftpkMatch = output.match(/FTPK:\s*(-?[\d.]+)\s+(-?[\d.]+)\s+dBFS/);
+      // Look for FTPK (frame true peak) from ebur128 output.
+      // Stereo: "FTPK: -XX.X -XX.X dBFS"; mono: "FTPK: -XX.X dBFS"
+      const ftpkMatch = output.match(/FTPK:\s*(-?[\d.]+)(?:\s+(-?[\d.]+))?\s+dBFS/);
       if (ftpkMatch) {
-        // Average the left and right channels
         const left = parseFloat(ftpkMatch[1]);
-        const right = parseFloat(ftpkMatch[2]);
+        const right = ftpkMatch[2] ? parseFloat(ftpkMatch[2]) : left;
         if (!isNaN(left) && !isNaN(right)) {
           currentDb = (left + right) / 2;
         }
