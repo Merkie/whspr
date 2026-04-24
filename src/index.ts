@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 import { record, convertToMp3, checkFfmpeg, RecordingResult } from "./recorder.js";
-import { transcribe } from "./transcribe.js";
+import {
+  transcribe,
+  TranscriptionProvider,
+  TranscriptionModel,
+} from "./transcribe.js";
 import { postprocess } from "./postprocess.js";
 import { copyToClipboard } from "./utils/clipboard.js";
 import { calculateCost, formatCost } from "./utils/pricing.js";
@@ -21,7 +25,8 @@ import { ProviderType } from "./utils/providers.js";
 
 // Default prompts (can be overridden in settings.json)
 export const DEFAULTS = {
-  transcriptionModel: "whisper-large-v3-turbo" as const,
+  transcriptionProvider: "groq" as TranscriptionProvider,
+  transcriptionModel: "whisper-large-v3-turbo" as TranscriptionModel,
   language: "en",
   model: "groq:openai/gpt-oss-120b" as const,
   systemPrompt: `Your task is to fix spelling errors and proper names in transcribed text.
@@ -43,9 +48,10 @@ const DEFAULT_SETTINGS: WhsprSettings = {
 export interface WhsprSettings {
   verbose?: boolean;
   suffix?: string; // Appended to all transcriptions (e.g., "\n\n(Transcribed via Whisper)")
-  transcriptionModel?: "whisper-large-v3" | "whisper-large-v3-turbo";
-  language?: string; // ISO 639-1 language code (e.g., "en", "zh", "es")
-  model?: string; // Post-processing model in "provider:model-name" format (e.g., "groq:openai/gpt-oss-120b")
+  transcriptionProvider?: TranscriptionProvider; // "groq" (default) or "openai"
+  transcriptionModel?: TranscriptionModel; // Depends on provider (e.g., "whisper-large-v3-turbo" for groq, "gpt-4o-transcribe" for openai)
+  language?: string; // ISO 639-1 language code (e.g., "en", "zh", "es"). Ignored by OpenAI gpt-4o-* models.
+  model?: string; // Post-processing model in "provider:model-name" format (e.g., "groq:openai/gpt-oss-120b", "openrouter:google/gemini-2.0-flash-001")
   systemPrompt?: string; // System prompt for post-processing
   customPromptPrefix?: string; // Prefix before custom prompt content
   transcriptionPrefix?: string; // Prefix before raw transcription
@@ -77,9 +83,13 @@ function parseModelProvider(model: string): {
   }
   const provider = model.slice(0, colonIndex) as ProviderType;
   const modelName = model.slice(colonIndex + 1);
-  if (provider !== "groq" && provider !== "anthropic") {
+  if (
+    provider !== "groq" &&
+    provider !== "anthropic" &&
+    provider !== "openrouter"
+  ) {
     throw new Error(
-      `Unknown provider: "${provider}". Supported providers: groq, anthropic`,
+      `Unknown provider: "${provider}". Supported providers: groq, anthropic, openrouter`,
     );
   }
   return { provider, modelName };
@@ -225,9 +235,16 @@ async function main() {
   const modelConfig = settings.model ?? DEFAULTS.model;
   const { provider, modelName } = parseModelProvider(modelConfig);
 
+  const transcriptionProvider =
+    settings.transcriptionProvider ?? DEFAULTS.transcriptionProvider;
+  const transcriptionModel =
+    settings.transcriptionModel ??
+    (transcriptionProvider === "openai"
+      ? ("gpt-4o-transcribe" as TranscriptionModel)
+      : DEFAULTS.transcriptionModel);
+
   // Check for required API keys before recording
-  // Always need GROQ_API_KEY for Whisper transcription
-  if (!process.env.GROQ_API_KEY) {
+  if (transcriptionProvider === "groq" && !process.env.GROQ_API_KEY) {
     console.error(
       colors.error("Error: GROQ_API_KEY environment variable is not set"),
     );
@@ -240,7 +257,32 @@ async function main() {
     process.exit(1);
   }
 
+  if (transcriptionProvider === "openai" && !process.env.OPENAI_API_KEY) {
+    console.error(
+      colors.error("Error: OPENAI_API_KEY environment variable is not set"),
+    );
+    console.log(
+      colors.metadata(
+        "Get your API key at https://platform.openai.com/api-keys",
+      ),
+    );
+    console.log(
+      colors.metadata('Then run: export OPENAI_API_KEY="your-api-key"'),
+    );
+    process.exit(1);
+  }
+
   // Check for provider-specific API key for post-processing
+  if (provider === "groq" && !process.env.GROQ_API_KEY) {
+    console.error(
+      colors.error("Error: GROQ_API_KEY environment variable is not set"),
+    );
+    console.log(
+      colors.metadata("Get your API key at https://console.groq.com/keys"),
+    );
+    process.exit(1);
+  }
+
   if (provider === "anthropic" && !process.env.ANTHROPIC_API_KEY) {
     console.error(
       colors.error("Error: ANTHROPIC_API_KEY environment variable is not set"),
@@ -256,6 +298,19 @@ async function main() {
     process.exit(1);
   }
 
+  if (provider === "openrouter" && !process.env.OPENROUTER_API_KEY) {
+    console.error(
+      colors.error("Error: OPENROUTER_API_KEY environment variable is not set"),
+    );
+    console.log(
+      colors.metadata("Get your API key at https://openrouter.ai/keys"),
+    );
+    console.log(
+      colors.metadata('Then run: export OPENROUTER_API_KEY="your-api-key"'),
+    );
+    process.exit(1);
+  }
+
   // Load custom prompt early to show in startup header
   const { prompt: customPrompt, sources: vocabSources } =
     loadCustomPrompt(verbose);
@@ -263,6 +318,7 @@ async function main() {
   // Display startup header
   renderStartupHeader({
     model: modelConfig,
+    transcription: `${transcriptionProvider}:${transcriptionModel}`,
     vocabSources,
   });
 
@@ -286,13 +342,13 @@ async function main() {
     const processStart = Date.now();
 
     try {
-      // 3. Transcribe with Whisper
+      // 3. Transcribe
       status("Transcribing...");
-      const rawText = await transcribe(
-        mp3Path,
-        settings.transcriptionModel ?? DEFAULTS.transcriptionModel,
-        settings.language ?? DEFAULTS.language,
-      );
+      const rawText = await transcribe(mp3Path, {
+        provider: transcriptionProvider,
+        model: transcriptionModel,
+        language: settings.language ?? DEFAULTS.language,
+      });
 
       if (verbose) {
         clearStatus();
@@ -341,9 +397,12 @@ async function main() {
         .filter((w) => w.length > 0).length;
       const charCount = fixedText.length;
 
-      // Calculate cost if usage info is available
+      // Calculate cost — prefer cost reported directly by the provider
+      // (OpenRouter) over our static MODEL_PRICING table.
       let costString: string | undefined;
-      if (postprocessResult.usage) {
+      if (postprocessResult.costUsd !== undefined) {
+        costString = formatCost(postprocessResult.costUsd);
+      } else if (postprocessResult.usage) {
         const cost = calculateCost(modelName, postprocessResult.usage);
         costString = formatCost(cost);
       }

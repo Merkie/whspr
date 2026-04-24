@@ -29,13 +29,14 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^3.0.15",
-    "@ai-sdk/groq": "^3.0.11",
-    "ai": "^6.0.41",
+    "@ai-sdk/anthropic": "^3.0.71",
+    "@ai-sdk/groq": "^3.0.35",
+    "@openrouter/ai-sdk-provider": "^2.3.3",
+    "ai": "^6.0.160",
     "chalk": "^5.x",
     "clipboardy": "^4.x",
     "groq-sdk": "^0.x",
-    "zod": "^3.x"
+    "zod": "^4.1.8"
   },
   "devDependencies": {
     "@types/node": "^22.x",

@@ -26,6 +26,7 @@ export const colors = {
 
 export interface StartupConfig {
   model: string;
+  transcription: string;
   vocabSources: string[];
 }
 
@@ -42,6 +43,18 @@ export function renderStartupHeader(config: StartupConfig): void {
     );
 
   console.log(topLine);
+
+  // Transcription line
+  const transcriptionLabel = "Transcribe: ";
+  const transcriptionValue = config.transcription;
+  const transcriptionLine = `${transcriptionLabel}${transcriptionValue}`;
+  console.log(
+    colors.dim(BOX.vertical + "  ") +
+      colors.metadata(transcriptionLabel) +
+      colors.white(transcriptionValue) +
+      " ".repeat(Math.max(0, innerWidth - transcriptionLine.length)) +
+      colors.dim(" " + BOX.vertical),
+  );
 
   // Model line
   const modelLabel = "Model: ";

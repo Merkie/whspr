@@ -1,6 +1,10 @@
 import { streamText } from "ai";
 import { withRetry } from "./utils/retry.js";
-import { getProvider, ProviderType } from "./utils/providers.js";
+import {
+  getProvider,
+  ProviderType,
+  extractOpenRouterCost,
+} from "./utils/providers.js";
 import type { UsageInfo } from "./utils/pricing.js";
 
 export interface PostprocessOptions {
@@ -15,6 +19,10 @@ export interface PostprocessOptions {
 export interface PostprocessResult {
   text: string;
   usage?: UsageInfo;
+  // Cost reported directly by the provider (OpenRouter). When present,
+  // prefer this over computing from MODEL_PRICING since it reflects the
+  // upstream price for the specific routed model.
+  costUsd?: number;
 }
 
 export async function postprocess(
@@ -36,6 +44,10 @@ export async function postprocess(
     async () => {
       const textStream = streamText({
         model: providerInstance(modelName),
+        providerOptions:
+          provider === "openrouter"
+            ? { openrouter: { usage: { include: true } } }
+            : undefined,
         messages: [
           {
             role: "system",
@@ -79,7 +91,13 @@ export async function postprocess(
           ? { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens }
           : undefined;
 
-      return { text: accumulated.trim(), usage: usageInfo };
+      let costUsd: number | undefined;
+      if (provider === "openrouter") {
+        const providerMetadata = await textStream.providerMetadata;
+        costUsd = extractOpenRouterCost(providerMetadata);
+      }
+
+      return { text: accumulated.trim(), usage: usageInfo, costUsd };
     },
     3,
     "postprocess",
