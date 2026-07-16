@@ -4,7 +4,7 @@
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
 
-A CLI tool that records audio from your microphone, transcribes it (Groq Whisper or OpenAI `gpt-4o-transcribe`), and post-processes the transcription with AI to fix errors and apply custom vocabulary. Post-processing supports Groq, Anthropic, and **any OpenRouter model**.
+A CLI tool that records audio from your microphone, transcribes it with Groq, OpenAI, or OpenRouter, and post-processes the transcription with AI to fix errors and apply custom vocabulary. Post-processing supports Groq, Anthropic, and **any OpenRouter model**.
 
 <p align="center">
   <img src="./demo.gif" alt="whspr demo" width="600">
@@ -28,10 +28,10 @@ alias whisper="whspr"
 
 - Node.js 18+
 - FFmpeg (`brew install ffmpeg` on macOS)
-- Groq API key (default transcription provider + free Groq post-processing models)
+- Groq API key (default transcription provider and Groq post-processing models)
 - OpenAI API key (optional, for `gpt-4o-transcribe` / `gpt-4o-mini-transcribe` / `whisper-1` transcription)
 - Anthropic API key (optional, for Anthropic post-processing models)
-- OpenRouter API key (optional, unlocks any model on [OpenRouter](https://openrouter.ai/models))
+- OpenRouter API key (optional, for OpenRouter transcription and post-processing)
 
 ## Usage
 
@@ -63,7 +63,7 @@ Press **Enter** to stop recording.
 
 - Live audio waveform visualization in the terminal
 - 15-minute max recording time
-- Transcription via **Groq Whisper** (default) or **OpenAI** (`gpt-4o-transcribe`, `gpt-4o-mini-transcribe`, `whisper-1`)
+- Transcription via **Groq Whisper** (default), **OpenAI**, or **OpenRouter**
 - AI-powered post-processing via **Groq**, **Anthropic**, or **OpenRouter** (any OpenRouter-hosted model)
 - Progress bar during post-processing
 - Cost tracking — static pricing for Groq/Anthropic, real billed cost reported by OpenRouter
@@ -98,9 +98,9 @@ Create `~/.whspr/settings.json` to customize whspr's behavior:
 | -------------------------- | ------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | `verbose`                  | boolean | `false`                                                         | Enable verbose output                                                          |
 | `suffix`                   | string  | none                                                            | Text appended to all transcriptions                                            |
-| `transcriptionProvider`    | string  | `"groq"`                                                        | Transcription provider: `"groq"` or `"openai"`                                 |
-| `transcriptionModel`       | string  | provider default                                                | Groq: `"whisper-large-v3"`, `"whisper-large-v3-turbo"`. OpenAI: `"gpt-4o-transcribe"`, `"gpt-4o-mini-transcribe"`, `"whisper-1"` |
-| `language`                 | string  | `"en"`                                                          | ISO 639-1 language code (e.g., `"en"`, `"zh"`, `"es"`). Ignored by OpenAI `gpt-4o-*` models |
+| `transcriptionProvider`    | string  | `"groq"`                                                        | Transcription provider: `"groq"`, `"openai"`, or `"openrouter"`                 |
+| `transcriptionModel`       | string  | provider default                                                | Groq: `"whisper-large-v3"`, `"whisper-large-v3-turbo"`. OpenAI: `"gpt-4o-transcribe"`, `"gpt-4o-mini-transcribe"`, `"whisper-1"`. OpenRouter: `"openai/gpt-4o-transcribe"` |
+| `language`                 | string  | `"en"`                                                          | ISO 639-1 language code (e.g., `"en"`, `"zh"`, `"es"`)                         |
 | `model`                    | string  | `"groq:openai/gpt-oss-120b"`                                    | Post-processing model in `provider:model-name` format (see below)              |
 | `systemPrompt`             | string  | (built-in)                                                      | System prompt for AI post-processing                                           |
 | `customPromptPrefix`       | string  | `"Here's my custom user prompt:"`                               | Prefix before custom prompt content                                            |
@@ -145,7 +145,8 @@ The `transcriptionProvider` + `transcriptionModel` settings control which speech
 | `groq`   | `whisper-large-v3`       | `GROQ_API_KEY`   | Higher accuracy, slower                                      |
 | `openai` | `gpt-4o-transcribe`      | `OPENAI_API_KEY` | OpenAI's highest-quality transcription model                 |
 | `openai` | `gpt-4o-mini-transcribe` | `OPENAI_API_KEY` | Smaller/cheaper GPT-4o transcription                         |
-| `openai` | `whisper-1`              | `OPENAI_API_KEY` | OpenAI's hosted Whisper. Only model that accepts `language`. |
+| `openai` | `whisper-1`              | `OPENAI_API_KEY` | OpenAI's hosted Whisper                                      |
+| `openrouter` | `openai/gpt-4o-transcribe` | `OPENROUTER_API_KEY` | GPT-4o Transcribe through OpenRouter's speech-to-text endpoint |
 
 ### Example: Using Claude with Custom Suffix
 
@@ -163,6 +164,16 @@ The `transcriptionProvider` + `transcriptionModel` settings control which speech
   "transcriptionProvider": "openai",
   "transcriptionModel": "gpt-4o-transcribe",
   "model": "openrouter:google/gemini-2.0-flash-001"
+}
+```
+
+### Example: OpenRouter Transcription + Post-processing
+
+```json
+{
+  "transcriptionProvider": "openrouter",
+  "transcriptionModel": "openai/gpt-4o-transcribe",
+  "model": "openrouter:anthropic/claude-sonnet-4.5"
 }
 ```
 
@@ -226,7 +237,7 @@ When both exist, they are combined (global first, then local).
 1. Records audio from your default microphone using FFmpeg
 2. Displays a live waveform visualization based on audio levels
 3. Converts the recording to MP3
-4. Sends audio to the configured transcription provider (Groq Whisper or OpenAI)
+4. Sends audio to the configured transcription provider (Groq, OpenAI, or OpenRouter)
 5. Loads custom prompts from `~/.whspr/WHSPR.md` and/or `./WHSPR.md`
 6. Sends transcription + custom vocabulary to the configured post-processing model (Groq / Anthropic / OpenRouter) with a progress bar
 7. Applies suffix (if configured)

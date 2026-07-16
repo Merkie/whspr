@@ -6,12 +6,13 @@ export interface ModelPricing {
 
 export const MODEL_PRICING: Record<string, ModelPricing> = {
   // Groq models
-  "openai/gpt-oss-120b": { input: 0.0, output: 0.0 }, // Free tier pricing
+  "openai/gpt-oss-120b": { input: 0.15, output: 0.6 },
 
   // Anthropic models
   "claude-sonnet-4-5": { input: 3.0, output: 15.0 },
-  "claude-haiku-4-5": { input: 0.8, output: 4.0 },
-  "claude-opus-4-5": { input: 15.0, output: 75.0 },
+  "claude-sonnet-4-6": { input: 3.0, output: 15.0 },
+  "claude-haiku-4-5": { input: 1.0, output: 5.0 },
+  "claude-opus-4-5": { input: 5.0, output: 25.0 },
 };
 
 export interface UsageInfo {
@@ -19,10 +20,13 @@ export interface UsageInfo {
   outputTokens: number;
 }
 
-export function calculateCost(modelName: string, usage: UsageInfo): number {
+export function calculateCost(
+  modelName: string,
+  usage: UsageInfo,
+): number | undefined {
   const pricing = MODEL_PRICING[modelName];
   if (!pricing) {
-    return 0;
+    return undefined;
   }
 
   const inputCost = (usage.inputTokens / 1_000_000) * pricing.input;

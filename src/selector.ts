@@ -8,7 +8,7 @@ interface RecordingEntry {
   date: Date;
 }
 
-function parseRecordingDate(filename: string): Date | null {
+export function parseRecordingDate(filename: string): Date | null {
   // Pattern: recording-{epoch}.mp3
   const epochMatch = filename.match(/^recording-(\d{13,})\.mp3$/);
   if (epochMatch) {
@@ -20,11 +20,10 @@ function parseRecordingDate(filename: string): Date | null {
     /^transcription-(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2})\.mp3$/,
   );
   if (isoMatch) {
-    const isoStr = isoMatch[1].replace(
-      /T(\d{2})-(\d{2})-(\d{2})/,
-      "T$1:$2:$3",
-    );
-    return new Date(isoStr);
+    const isoStr = isoMatch[1].replace(/T(\d{2})-(\d{2})-(\d{2})/, "T$1:$2:$3");
+    // Timestamped filenames are generated with Date#toISOString, so the
+    // encoded time is UTC even though the trailing Z is omitted.
+    return new Date(`${isoStr}Z`);
   }
 
   return null;

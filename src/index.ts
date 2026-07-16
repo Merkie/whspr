@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { record, convertToMp3, checkFfmpeg, RecordingResult } from "./recorder.js";
+import { record, convertToMp3, checkFfmpeg } from "./recorder.js";
 import {
   transcribe,
   TranscriptionProvider,
@@ -71,6 +71,19 @@ function generateTimestampedFilename(extension: string): string {
   return `transcription-${timestamp}${extension}`;
 }
 
+function removeTemporaryRecording(filePath: string): void {
+  const directory = path.dirname(filePath);
+  const isWhsprTempDirectory =
+    path.dirname(directory) === os.tmpdir() &&
+    path.basename(directory).startsWith("whspr-");
+
+  if (isWhsprTempDirectory) {
+    fs.rmSync(directory, { recursive: true, force: true });
+  } else if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+  }
+}
+
 function parseModelProvider(model: string): {
   provider: ProviderType;
   modelName: string;
@@ -83,6 +96,11 @@ function parseModelProvider(model: string): {
   }
   const provider = model.slice(0, colonIndex) as ProviderType;
   const modelName = model.slice(colonIndex + 1);
+  if (!modelName) {
+    throw new Error(
+      `Invalid model format: "${model}". The model name cannot be empty`,
+    );
+  }
   if (
     provider !== "groq" &&
     provider !== "anthropic" &&
@@ -188,25 +206,35 @@ const fromRecording = process.argv.includes("--from-recording");
 // Execute a command with text piped to stdin
 function pipeToCommand(text: string, command: string): Promise<void> {
   return new Promise((resolve, reject) => {
+    let settled = false;
+    const settle = (error?: Error) => {
+      if (settled) return;
+      settled = true;
+      if (error) reject(error);
+      else resolve();
+    };
+
     const child = spawn(command, [], {
       shell: true,
       stdio: ["pipe", "inherit", "inherit"],
     });
 
     child.on("error", (err) => {
-      reject(new Error(`Failed to execute pipe command: ${err.message}`));
+      settle(new Error(`Failed to execute pipe command: ${err.message}`));
     });
 
     child.on("close", (code) => {
       if (code === 0) {
-        resolve();
+        settle();
       } else {
-        reject(new Error(`Pipe command exited with code ${code}`));
+        settle(new Error(`Pipe command exited with code ${code}`));
       }
     });
 
-    child.stdin.write(text);
-    child.stdin.end();
+    child.stdin.on("error", (err) => {
+      settle(new Error(`Failed to pipe text to command: ${err.message}`));
+    });
+    child.stdin.end(text);
   });
 }
 
@@ -228,20 +256,28 @@ function formatDuration(seconds: number): string {
 }
 
 async function main() {
-  // Ensure FFmpeg is available before doing anything
-  checkFfmpeg();
-
   // Parse model configuration
   const modelConfig = settings.model ?? DEFAULTS.model;
   const { provider, modelName } = parseModelProvider(modelConfig);
 
   const transcriptionProvider =
     settings.transcriptionProvider ?? DEFAULTS.transcriptionProvider;
+  if (
+    transcriptionProvider !== "groq" &&
+    transcriptionProvider !== "openai" &&
+    transcriptionProvider !== "openrouter"
+  ) {
+    throw new Error(
+      `Unknown transcription provider: "${transcriptionProvider}". Supported providers: groq, openai, openrouter`,
+    );
+  }
   const transcriptionModel =
     settings.transcriptionModel ??
     (transcriptionProvider === "openai"
       ? ("gpt-4o-transcribe" as TranscriptionModel)
-      : DEFAULTS.transcriptionModel);
+      : transcriptionProvider === "openrouter"
+        ? ("openai/gpt-4o-transcribe" as TranscriptionModel)
+        : DEFAULTS.transcriptionModel);
 
   // Check for required API keys before recording
   if (transcriptionProvider === "groq" && !process.env.GROQ_API_KEY) {
@@ -268,6 +304,22 @@ async function main() {
     );
     console.log(
       colors.metadata('Then run: export OPENAI_API_KEY="your-api-key"'),
+    );
+    process.exit(1);
+  }
+
+  if (
+    transcriptionProvider === "openrouter" &&
+    !process.env.OPENROUTER_API_KEY
+  ) {
+    console.error(
+      colors.error("Error: OPENROUTER_API_KEY environment variable is not set"),
+    );
+    console.log(
+      colors.metadata("Get your API key at https://openrouter.ai/keys"),
+    );
+    console.log(
+      colors.metadata('Then run: export OPENROUTER_API_KEY="your-api-key"'),
     );
     process.exit(1);
   }
@@ -330,6 +382,9 @@ async function main() {
       // Select from saved recordings
       mp3Path = await selectRecording(RECORDINGS_DIR);
     } else {
+      // FFmpeg is only required when capturing a new recording.
+      checkFfmpeg();
+
       // 1. Record audio
       const recording = await record(verbose);
       audioDuration = recording.durationSeconds;
@@ -404,7 +459,9 @@ async function main() {
         costString = formatCost(postprocessResult.costUsd);
       } else if (postprocessResult.usage) {
         const cost = calculateCost(modelName, postprocessResult.usage);
-        costString = formatCost(cost);
+        if (cost !== undefined) {
+          costString = formatCost(cost);
+        }
       }
 
       // Draw box
@@ -453,7 +510,8 @@ async function main() {
       );
       console.log(
         formatCompactStats({
-          audioDuration: audioDuration != null ? formatDuration(audioDuration) : "—",
+          audioDuration:
+            audioDuration != null ? formatDuration(audioDuration) : "—",
           processingTime: processTime + "s",
           cost: costString,
         }),
@@ -514,7 +572,7 @@ async function main() {
 
       // 9. Clean up (don't delete the user's saved recording)
       if (!fromRecording) {
-        fs.unlinkSync(mp3Path);
+        removeTemporaryRecording(mp3Path);
       }
     } catch (error) {
       clearStatus();
@@ -530,6 +588,7 @@ async function main() {
         `recording-${Date.now()}.mp3`,
       );
       fs.renameSync(mp3Path, backupPath);
+      removeTemporaryRecording(mp3Path);
       console.error(colors.error(`Error: ${error}`));
       console.log(colors.info(`Recording saved to: ${backupPath}`));
       process.exit(1);
@@ -545,4 +604,8 @@ async function main() {
   }
 }
 
-main();
+main().catch((error) => {
+  clearStatus();
+  console.error(colors.error(`Error: ${error}`));
+  process.exitCode = 1;
+});

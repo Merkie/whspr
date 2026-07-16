@@ -1,10 +1,13 @@
 {
   "name": "whspr",
-  "version": "1.2.0",
-  "description": "CLI tool for audio transcription with Groq Whisper API",
+  "version": "1.3.0",
+  "description": "CLI microphone transcription with Groq, OpenAI, and OpenRouter",
   "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
   "bin": {
-    "whspr": "./bin/whspr.js"
+    "whspr": "bin/whspr.js"
   },
   "keywords": [
     "whisper",
@@ -17,16 +20,20 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Merkie/whspr"
+    "url": "git+https://github.com/Merkie/whspr.git"
   },
   "files": [
     "bin",
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "npm run clean && tsc",
     "dev": "tsx src/index.ts",
-    "prepublishOnly": "npm run build"
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.js\" \"bin/**/*.js\" package.json tsconfig.json",
+    "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.js\" \"bin/**/*.js\" package.json tsconfig.json",
+    "test": "npm run build && node --test test/transcribe.test.js",
+    "prepack": "npm run build"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.71",
@@ -43,5 +50,8 @@
     "prettier": "^3.8.0",
     "tsx": "^4.x",
     "typescript": "^5.x"
+  },
+  "overrides": {
+    "form-data": "^4.0.6"
   }
 }

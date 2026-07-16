@@ -11,7 +11,7 @@ Initialize whspr (voice transcription) support for this project by creating a WH
 whspr is a CLI tool (npm package: `whspr`, often aliased as `whisper`) that:
 
 1. Records audio from your microphone
-2. Transcribes speech using Groq's Whisper API
+2. Transcribes speech using Groq, OpenAI, or OpenRouter
 3. Post-processes transcriptions with AI to fix errors using custom vocabulary
 
 The WHSPR.md file (or WHISPER.md) provides project-specific vocabulary and context that helps the AI correct transcription errors. For example, if your project uses "PostgreSQL" but Whisper transcribes it as "post crest QL", the WHSPR.md file can specify the correct term.

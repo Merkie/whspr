@@ -35,7 +35,9 @@ export function getProvider(provider: ProviderType): LanguageModelFactory {
 
 // OpenRouter returns `cost` (USD) in providerMetadata when usage accounting is
 // enabled. Returns undefined if not present.
-export function extractOpenRouterCost(providerMetadata: unknown): number | undefined {
+export function extractOpenRouterCost(
+  providerMetadata: unknown,
+): number | undefined {
   const pm = providerMetadata as
     | { openrouter?: { usage?: { cost?: number } } }
     | undefined;

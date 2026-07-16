@@ -1,10 +1,10 @@
 {
   "name": "whspr",
   "description": "Integrates whspr voice transcription with Claude Code. Maintains a WHSPR.md file with project context to improve transcription accuracy when using voice input.",
-  "version": "1.1.0",
+  "version": "1.3.0",
   "author": {
     "name": "Archer"
   },
-  "repository": "https://github.com/your-username/whspr",
+  "repository": "https://github.com/Merkie/whspr",
   "homepage": "https://www.npmjs.com/package/whspr"
 }

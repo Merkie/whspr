@@ -33,10 +33,14 @@ function getAudioInput(): {
 }
 
 function detectWindowsAudioDevice(): string {
-  const result = spawnSync("ffmpeg", ["-list_devices", "true", "-f", "dshow", "-i", "dummy"], {
-    encoding: "utf-8",
-    stdio: ["pipe", "pipe", "pipe"],
-  });
+  const result = spawnSync(
+    "ffmpeg",
+    ["-list_devices", "true", "-f", "dshow", "-i", "dummy"],
+    {
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+    },
+  );
 
   // ffmpeg exits with error when listing devices, but prints the list to stderr
   const stderr = result.stderr || "";
@@ -120,35 +124,44 @@ export interface RecordingResult {
 }
 
 export async function record(verbose = false): Promise<RecordingResult> {
+  if (!process.stdin.isTTY) {
+    throw new Error("Recording requires an interactive terminal");
+  }
+
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "whspr-"));
   const wavPath = path.join(tmpDir, "recording.wav");
 
   return new Promise((resolve, reject) => {
     // Initialize waveform buffer
-    let waveWidth = getWaveWidth();
+    const waveWidth = getWaveWidth();
     const waveBuffer: string[] = new Array(waveWidth).fill(WAVE_CHARS[0]);
     let currentDb = -60;
     let cancelled = false;
 
-    // Spawn FFmpeg with ebur128 filter to get volume levels
+    // Keep the saved recording on a clean branch. The meter analyzes a
+    // duplicate branch so ebur128's resampling cannot alter recorded audio.
     const { format, device, extraArgs } = getAudioInput();
     const ffmpeg: ChildProcess = spawn(
       "ffmpeg",
       [
+        "-hide_banner",
+        "-nostats",
         "-f",
         format,
         ...extraArgs,
         "-i",
         device,
-        "-af",
-        "ebur128=peak=true",
+        "-filter_complex",
+        "[0:a]asplit=2[recording][meter];[meter]ebur128=peak=true,anullsink",
+        "-map",
+        "[recording]",
         "-t",
         MAX_DURATION_SECONDS.toString(),
         "-y",
         wavPath,
       ],
       {
-        stdio: ["pipe", "pipe", "pipe"],
+        stdio: ["pipe", "ignore", "pipe"],
       },
     );
 
@@ -195,8 +208,10 @@ export async function record(verbose = false): Promise<RecordingResult> {
 
       // Look for FTPK (frame true peak) from ebur128 output.
       // Stereo: "FTPK: -XX.X -XX.X dBFS"; mono: "FTPK: -XX.X dBFS"
-      const ftpkMatch = output.match(/FTPK:\s*(-?[\d.]+)(?:\s+(-?[\d.]+))?\s+dBFS/);
-      if (ftpkMatch) {
+      const ftpkMatches = output.matchAll(
+        /FTPK:\s*(-?[\d.]+)(?:\s+(-?[\d.]+))?\s+dBFS/g,
+      );
+      for (const ftpkMatch of ftpkMatches) {
         const left = parseFloat(ftpkMatch[1]);
         const right = ftpkMatch[2] ? parseFloat(ftpkMatch[2]) : left;
         if (!isNaN(left) && !isNaN(right)) {
@@ -204,6 +219,14 @@ export async function record(verbose = false): Promise<RecordingResult> {
         }
       }
     });
+
+    function cleanupInput() {
+      process.stdin.removeListener("data", onKeypress);
+      if (process.stdin.isTTY) {
+        process.stdin.setRawMode(false);
+        process.stdin.pause();
+      }
+    }
 
     // Listen for Enter to stop, Ctrl+C to cancel
     const onKeypress = (data: Buffer) => {
@@ -216,9 +239,7 @@ export async function record(verbose = false): Promise<RecordingResult> {
         cancelled = isCtrlC;
         clearInterval(timer);
         clearInterval(waveTimer);
-        process.stdin.removeListener("data", onKeypress);
-        process.stdin.setRawMode(false);
-        process.stdin.pause();
+        cleanupInput();
 
         // Stop FFmpeg gracefully — Windows doesn't support SIGINT for child processes
         if (process.platform === "win32") {
@@ -229,23 +250,20 @@ export async function record(verbose = false): Promise<RecordingResult> {
       }
     };
 
-    if (process.stdin.isTTY) {
-      process.stdin.setRawMode(true);
-      process.stdin.resume();
-      process.stdin.on("data", onKeypress);
-    }
+    process.stdin.setRawMode(true);
+    process.stdin.resume();
+    process.stdin.on("data", onKeypress);
 
     ffmpeg.on("close", (code) => {
       clearInterval(timer);
       clearInterval(waveTimer);
+      cleanupInput();
       // Clear both lines (waveform and status)
       process.stdout.write("\x1b[2K\n\x1b[2K\x1b[A\r");
 
       if (cancelled) {
         // User pressed Ctrl+C - clean up and reject
-        if (fs.existsSync(wavPath)) {
-          fs.unlinkSync(wavPath);
-        }
+        fs.rmSync(tmpDir, { recursive: true, force: true });
         reject(new Error("cancelled"));
       } else if (stopped || code === 0 || code === 255) {
         // FFmpeg returns 255 when interrupted with SIGINT
@@ -257,9 +275,11 @@ export async function record(verbose = false): Promise<RecordingResult> {
           }
           resolve({ path: wavPath, durationSeconds: elapsedSeconds });
         } else {
+          fs.rmSync(tmpDir, { recursive: true, force: true });
           reject(new Error("Recording failed: no output file created"));
         }
       } else {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
         reject(new Error(`FFmpeg exited with code ${code}`));
       }
     });
@@ -268,10 +288,8 @@ export async function record(verbose = false): Promise<RecordingResult> {
       clearInterval(timer);
       clearInterval(waveTimer);
       stopped = true;
-      if (process.stdin.isTTY) {
-        process.stdin.setRawMode(false);
-        process.stdin.pause();
-      }
+      cleanupInput();
+      fs.rmSync(tmpDir, { recursive: true, force: true });
       reject(new Error(`Failed to start FFmpeg: ${err.message}`));
     });
   });
@@ -281,9 +299,12 @@ export async function convertToMp3(wavPath: string): Promise<string> {
   const mp3Path = wavPath.replace(/\.wav$/, ".mp3");
 
   return new Promise((resolve, reject) => {
+    let stderr = "";
     const ffmpeg = spawn(
       "ffmpeg",
       [
+        "-hide_banner",
+        "-nostats",
         "-i",
         wavPath,
         "-codec:a",
@@ -294,9 +315,16 @@ export async function convertToMp3(wavPath: string): Promise<string> {
         mp3Path,
       ],
       {
-        stdio: ["pipe", "pipe", "pipe"],
+        stdio: ["ignore", "ignore", "pipe"],
       },
     );
+
+    ffmpeg.stderr?.on("data", (data: Buffer) => {
+      stderr += data.toString();
+      if (stderr.length > 8_000) {
+        stderr = stderr.slice(-8_000);
+      }
+    });
 
     ffmpeg.on("close", (code) => {
       if (code === 0) {
@@ -304,7 +332,11 @@ export async function convertToMp3(wavPath: string): Promise<string> {
         fs.unlinkSync(wavPath);
         resolve(mp3Path);
       } else {
-        reject(new Error(`MP3 conversion failed with code ${code}`));
+        reject(
+          new Error(
+            `MP3 conversion failed with code ${code}${stderr ? `: ${stderr.trim()}` : ""}`,
+          ),
+        );
       }
     });
 
