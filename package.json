@@ -1,6 +1,6 @@
 {
   "name": "whspr",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "CLI microphone transcription with Groq, OpenAI, and OpenRouter",
   "type": "module",
   "engines": {
