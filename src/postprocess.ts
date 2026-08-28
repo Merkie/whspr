@@ -48,13 +48,10 @@ export async function postprocess(
           provider === "openrouter"
             ? { openrouter: { usage: { include: true } } }
             : undefined,
+        system:
+          systemPrompt +
+          "\n\nIMPORTANT: Output ONLY the corrected transcription text. Do not wrap it in JSON, markdown code blocks, or any other formatting. Just output the fixed text directly.",
         messages: [
-          {
-            role: "system",
-            content:
-              systemPrompt +
-              "\n\nIMPORTANT: Output ONLY the corrected transcription text. Do not wrap it in JSON, markdown code blocks, or any other formatting. Just output the fixed text directly.",
-          },
           {
             role: "user",
             content: [
